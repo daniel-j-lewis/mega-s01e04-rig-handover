@@ -23,12 +23,13 @@ describe('readNight', () => {
     expect(byJob['fixtures/refresh']).toMatchObject({
       runs: 4,
       retries: 3,
+      fails: 0,
       lastStatus: 'ok',
       lastError: 'upstream 503',
       firstAt: '2026-10-29T01:30:00+01:00',
       lastAt: '2026-10-29T01:37:00+01:00',
     });
-    expect(byJob['notes/backup']).toMatchObject({ lastStatus: 'fail', lastError: 'quota exceeded' });
+    expect(byJob['notes/backup']).toMatchObject({ fails: 1, lastStatus: 'fail', lastError: 'quota exceeded' });
     expect(byJob['digest/render']?.owner).toBeNull();
   });
 

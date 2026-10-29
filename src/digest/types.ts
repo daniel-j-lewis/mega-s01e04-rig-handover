@@ -6,9 +6,10 @@ export type RunStatus = 'ok' | 'retry' | 'fail';
 export type DigestRow = {
   job: string;
   owner: string | null;
-  // Every log line for the job, and the ones with status `retry`.
+  // Every log line for the job, and the ones with status `retry` and `fail`.
   runs: number;
   retries: number;
+  fails: number;
   lastStatus: RunStatus;
   // The most recent `error` seen for the job, even if a later run was ok.
   lastError: string | null;
