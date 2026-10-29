@@ -1,10 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DigestRow, Night, ReadNight, RunStatus } from './types.js';
 
 type Line = { at: string; job: string; status: RunStatus; owner: string | null; error: string | null };
 
-const STATUSES: readonly string[] = ['ok', 'retry', 'fail'];
+const isStatus = (s: unknown): s is RunStatus => s === 'ok' || s === 'retry' || s === 'fail';
+const isText = (s: unknown): s is string => typeof s === 'string' && s.trim() !== '';
 
 // Parse at the edge (styleguide): anything that isn't a whole line is a bad line, never thrown.
 function parseLine(text: string): Line | null {
@@ -16,20 +17,30 @@ function parseLine(text: string): Line | null {
   }
   if (typeof v !== 'object' || v === null) return null;
   const o = v as Record<string, unknown>;
-  if (typeof o.at !== 'string' || typeof o.job !== 'string') return null;
-  if (typeof o.status !== 'string' || !STATUSES.includes(o.status)) return null;
+  if (!isText(o.at) || !isText(o.job) || !isStatus(o.status)) return null;
   if (o.owner !== null && typeof o.owner !== 'string') return null;
   if (o.error !== undefined && typeof o.error !== 'string') return null;
-  return { at: o.at, job: o.job, status: o.status as RunStatus, owner: o.owner, error: o.error ?? null };
+  // An empty owner is missing data, like `null` (shown as `—`).
+  const owner = isText(o.owner) ? o.owner : null;
+  return { at: o.at, job: o.job, status: o.status, owner, error: o.error ?? null };
+}
+
+// The whole file, or `null` when the night has no readable file (gone, a directory, no access).
+function readFile(file: string): string | null {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 export const readNight: ReadNight = (runsDir, night) => {
-  const file = join(runsDir, `${night}.jsonl`);
-  if (!existsSync(file)) return null;
+  const content = readFile(join(runsDir, `${night}.jsonl`));
+  if (content === null) return null;
 
   const rows = new Map<string, DigestRow>();
   let badLines = 0;
-  for (const text of readFileSync(file, 'utf8').split('\n')) {
+  for (const text of content.split('\n')) {
     if (text.trim() === '') continue;
     const line = parseLine(text);
     if (!line) {

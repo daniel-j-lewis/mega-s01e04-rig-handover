@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -44,8 +44,23 @@ describe('readNight', () => {
     const dir = mkdtempSync(join(tmpdir(), 'rig-runs-'));
     writeFileSync(
       join(dir, '2026-01-01.jsonl'),
-      ['{"at":"t","job":"a","status":"ok","owner":"x"}', '{"at":"t","job":"a","status":"maybe","owner":"x"}', '{"job":"b"}', '[]', ''].join('\n'),
+      [
+        '{"at":"t","job":"a","status":"ok","owner":"x"}',
+        '{"at":"t","job":"a","status":"maybe","owner":"x"}',
+        '{"job":"b"}',
+        '{"at":"t","job":"","status":"ok","owner":"x"}',
+        '[]',
+        '',
+      ].join('\n'),
     );
-    expect(readNight(dir, '2026-01-01')).toMatchObject({ badLines: 3, rows: [{ job: 'a', runs: 1 }] });
+    expect(readNight(dir, '2026-01-01')).toMatchObject({ badLines: 4, rows: [{ job: 'a', runs: 1 }] });
+  });
+
+  it('reads an empty owner as missing and an unreadable night as none', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rig-runs-'));
+    writeFileSync(join(dir, '2026-01-01.jsonl'), '{"at":"t","job":"a","status":"ok","owner":""}\n');
+    mkdirSync(join(dir, '2026-01-02.jsonl'));
+    expect(readNight(dir, '2026-01-01')?.rows[0]?.owner).toBeNull();
+    expect(readNight(dir, '2026-01-02')).toBeNull();
   });
 });
